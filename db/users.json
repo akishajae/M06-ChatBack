@@ -1,0 +1,26 @@
+[
+  {
+    "id": "u1",
+    "name": "Profesor",
+    "email": "profesor@centro.com"
+  },
+  {
+    "id": "u2",
+    "name": "Ana",
+    "email": "ana@centro.com"
+  },
+  {
+    "id": "u3",
+    "name": "Luis",
+    "email": "luis@centro.com"
+  },
+  {
+    "id": "u4",
+    "name": "Marta",
+    "email": "marta@centro.com"
+  }, {
+    "id": "u5",
+    "name": "test",
+    "email": "test@gmail.com"
+  }
+]
