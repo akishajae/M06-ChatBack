@@ -168,34 +168,6 @@ loadData().then(() => {
     res.send("Hello from the backend!");
   });
 
-  app.post("/api/message", async (req, res) => {
-    const { message, author } = req.body;
-    if (!message || !author) {
-      return res.status(400).json({ error: "Mensaje o autor vacío" });
-    }
-
-    const newMessage = {
-      author,
-      text: message,
-      timestamp: new Date().toISOString(),
-    };
-
-    chatHistory.push(newMessage);
-    try {
-      await saveChatHistory(); // Save to text file
-    } catch (error) {
-      return res.status(500).json({ error: "Failed to save chat history" });
-    }
-
-    wss.clients.forEach((client) => {
-      if (client.readyState === WebSocket.OPEN) {
-        client.send(JSON.stringify({ type: "broadcast", ...newMessage }));
-      }
-    });
-
-    res.json({ sent: true });
-  });
-
   app.post("/login", async (req, res) => {
     const { username, email } = req.body;
     
