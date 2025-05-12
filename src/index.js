@@ -13,7 +13,7 @@ app.use(express.json());
 
 // File paths for text storage
 const CHAT_FILE = "./db/chat.txt";
-const DOCUMENT_FILE ="./db/document.txt";
+const DOCUMENT_FILE = "./db/document.txt";
 
 // Initialize chat history and document content from text files
 let chatHistory = [];
@@ -57,7 +57,9 @@ const loadData = async () => {
 // Save chat history to text file
 const saveChatHistory = async () => {
   try {
-    const chatText = chatHistory.map((msg) => `[${msg.timestamp}] ${msg.author}: ${msg.text}`).join("\n");
+    const chatText = chatHistory
+      .map((msg) => `[${msg.timestamp}] ${msg.author}: ${msg.text}`)
+      .join("\n");
     await fs.writeFile(CHAT_FILE, chatText);
     console.log("Chat history saved successfully");
   } catch (error) {
@@ -86,7 +88,12 @@ loadData().then(() => {
     console.log("Cliente conectado");
 
     // Send welcome message, initial document content, and chat history
-    ws.send(JSON.stringify({ type: "system", message: "Welcome to WebSocket server!" }));
+    ws.send(
+      JSON.stringify({
+        type: "system",
+        message: "Welcome to WebSocket server!",
+      })
+    );
     ws.send(JSON.stringify({ type: "document", content: documentContent }));
     ws.send(JSON.stringify({ type: "chatHistory", history: chatHistory }));
 
@@ -94,10 +101,15 @@ loadData().then(() => {
       try {
         const messageData = JSON.parse(data.toString());
         console.log("Received message:", messageData);
-        
+
         if (messageData.type === "message") {
           if (!messageData.text || !messageData.author) {
-            ws.send(JSON.stringify({ type: "error", message: "Invalid message format" }));
+            ws.send(
+              JSON.stringify({
+                type: "error",
+                message: "Invalid message format",
+              })
+            );
             return;
           }
 
@@ -111,7 +123,12 @@ loadData().then(() => {
           try {
             await saveChatHistory(); // Save to text file
           } catch (error) {
-            ws.send(JSON.stringify({ type: "error", message: "Failed to save chat history" }));
+            ws.send(
+              JSON.stringify({
+                type: "error",
+                message: "Failed to save chat history",
+              })
+            );
             return;
           }
 
@@ -125,21 +142,45 @@ loadData().then(() => {
           try {
             await saveDocumentContent(); // Save to text file
           } catch (error) {
-            ws.send(JSON.stringify({ type: "error", message: "Failed to save document content" }));
+            ws.send(
+              JSON.stringify({
+                type: "error",
+                message: "Failed to save document content",
+              })
+            );
             return;
           }
 
           wss.clients.forEach((client) => {
             if (client.readyState === WebSocket.OPEN) {
-              client.send(JSON.stringify({ type: "document", content: documentContent }));
+              client.send(
+                JSON.stringify({ type: "document", content: documentContent })
+              );
             }
           });
+        } else if (messageData.type == "systemNotification") { //New user conected 
+          const newMessage = {
+            author: "system",
+            text: messageData.text,
+            timestamp: messageData.timestamp,
+          };
+
+          wss.clients.forEach((client) => {
+            if (client.readyState === WebSocket.OPEN) {
+              client.send(JSON.stringify({ type: "broadcast", ...newMessage }));
+            }
+          });
+        
         } else {
-          ws.send(JSON.stringify({ type: "error", message: "Unknown message type" }));
+          ws.send(
+            JSON.stringify({ type: "error", message: "Unknown message type" })
+          );
         }
       } catch (error) {
         console.error("Error processing WebSocket message:", error);
-        ws.send(JSON.stringify({ type: "error", message: "Error processing message" }));
+        ws.send(
+          JSON.stringify({ type: "error", message: "Error processing message" })
+        );
       }
     });
 
@@ -173,13 +214,15 @@ loadData().then(() => {
 
   app.post("/login", async (req, res) => {
     const { username, email } = req.body;
-    
+
     try {
       const usersFile = "./db/users.json";
       const usersData = await fs.readFile(usersFile, "utf8");
       const users = JSON.parse(usersData);
 
-      const user = users.find((user) => user.name === username && user.email === email);
+      const user = users.find(
+        (user) => user.name === username && user.email === email
+      );
 
       if (user) {
         return res.status(200).json({ message: "Usuario encontrado", user });
