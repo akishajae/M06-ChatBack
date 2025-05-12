@@ -154,7 +154,10 @@ loadData().then(() => {
 
   // Endpoints to retrieve chat and document
   app.get("/api/chat", (req, res) => {
-    const chatText = chatHistory.map((msg) => `[${msg.timestamp}] ${msg.author}: ${msg.text}`).join("\n");
+    const chatText = chatHistory.map((msg) => {
+      const formattedTimestamp = new Date(msg.timestamp).toLocaleString("en-GB"); 
+      return `[${formattedTimestamp}] ${msg.author}: ${msg.text}`;
+    }).join("\n");
     res.setHeader("Content-Type", "text/plain");
     res.send(chatText);
   });
