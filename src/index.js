@@ -1,3 +1,8 @@
+/**
+ * Servidor backend con Express, WebSocket y persistencia en archivos.
+ * Proporciona funcionalidad de chat en tiempo real y edición de documentos colaborativa.
+ */
+
 const express = require("express");
 const http = require("http");
 const WebSocket = require("ws");
@@ -11,15 +16,17 @@ const port = 4000;
 app.use(cors());
 app.use(express.json());
 
-// File paths for text storage
+// Rutas de los archivos para persistencia
 const CHAT_FILE = "./db/chat.txt";
-const DOCUMENT_FILE ="./db/document.txt";
+const DOCUMENT_FILE = "./db/document.txt";
 
-// Initialize chat history and document content from text files
+// Variables en memoria
 let chatHistory = [];
 let documentContent = "";
 
-// Load initial data from text files
+/**
+ * Carga el historial de chat y contenido del documento desde archivos de texto.
+ */
 const loadData = async () => {
   try {
     const chatData = await fs.readFile(CHAT_FILE, "utf8");
@@ -54,7 +61,9 @@ const loadData = async () => {
   }
 };
 
-// Save chat history to text file
+/**
+ * Guarda el historial del chat en un archivo de texto.
+ */
 const saveChatHistory = async () => {
   try {
     const chatText = chatHistory.map((msg) => `[${msg.timestamp}] ${msg.author}: ${msg.text}`).join("\n");
@@ -66,7 +75,9 @@ const saveChatHistory = async () => {
   }
 };
 
-// Save document content to text file
+/**
+ * Guarda el contenido actual del documento en un archivo de texto.
+ */
 const saveDocumentContent = async () => {
   try {
     await fs.writeFile(DOCUMENT_FILE, documentContent);
@@ -77,24 +88,30 @@ const saveDocumentContent = async () => {
   }
 };
 
-// Load data on server start
+// Inicializa el servidor una vez que se han cargado los datos
 loadData().then(() => {
   const server = http.createServer(app);
   const wss = new WebSocket.Server({ server });
 
+  /**
+   * Manejo de conexiones WebSocket
+   */
   wss.on("connection", (ws) => {
     console.log("Cliente conectado");
 
-    // Send welcome message, initial document content, and chat history
+    // Enviar mensajes iniciales al nuevo cliente
     ws.send(JSON.stringify({ type: "system", message: "Welcome to WebSocket server!" }));
     ws.send(JSON.stringify({ type: "document", content: documentContent }));
     ws.send(JSON.stringify({ type: "chatHistory", history: chatHistory }));
 
+    /**
+     * Maneja mensajes entrantes del cliente WebSocket
+     */
     ws.on("message", async (data) => {
       try {
         const messageData = JSON.parse(data.toString());
         console.log("Received message:", messageData);
-        
+
         if (messageData.type === "message") {
           if (!messageData.text || !messageData.author) {
             ws.send(JSON.stringify({ type: "error", message: "Invalid message format" }));
@@ -109,12 +126,13 @@ loadData().then(() => {
 
           chatHistory.push(newMessage);
           try {
-            await saveChatHistory(); // Save to text file
+            await saveChatHistory();
           } catch (error) {
             ws.send(JSON.stringify({ type: "error", message: "Failed to save chat history" }));
             return;
           }
 
+          // Reenvía el mensaje a todos los clientes conectados
           wss.clients.forEach((client) => {
             if (client.readyState === WebSocket.OPEN) {
               client.send(JSON.stringify({ type: "broadcast", ...newMessage }));
@@ -123,7 +141,7 @@ loadData().then(() => {
         } else if (messageData.type === "document") {
           documentContent = messageData.content || "";
           try {
-            await saveDocumentContent(); // Save to text file
+            await saveDocumentContent();
           } catch (error) {
             ws.send(JSON.stringify({ type: "error", message: "Failed to save document content" }));
             return;
@@ -144,6 +162,11 @@ loadData().then(() => {
     });
 
     ws.on("close", () => {
+      wss.clients.forEach((client) => {
+        if (client.readyState === WebSocket.OPEN) {
+          client.send(JSON.stringify({ type: "broadcast", message: "A user has disconnected." }));
+        }
+      });
       console.log("Cliente desconectado");
     });
 
@@ -152,22 +175,40 @@ loadData().then(() => {
     });
   });
 
-  // Endpoints to retrieve chat and document
+  // Endpoints HTTP
+
+  /**
+   * @route GET /api/chat
+   * @desc Devuelve el historial del chat en texto plano
+   */
   app.get("/api/chat", (req, res) => {
     const chatText = chatHistory.map((msg) => `[${msg.timestamp}] ${msg.author}: ${msg.text}`).join("\n");
     res.setHeader("Content-Type", "text/plain");
     res.send(chatText);
   });
 
+  /**
+   * @route GET /api/document
+   * @desc Devuelve el contenido actual del documento
+   */
   app.get("/api/document", (req, res) => {
     res.setHeader("Content-Type", "text/plain");
     res.send(documentContent);
   });
 
+  /**
+   * @route GET /
+   * @desc Endpoint de prueba
+   */
   app.get("/", (req, res) => {
     res.send("Hello from the backend!");
   });
 
+  /**
+   * @route POST /api/message
+   * @desc Recibe un mensaje nuevo y lo difunde a todos los clientes
+   * @body { message: string, author: string }
+   */
   app.post("/api/message", async (req, res) => {
     const { message, author } = req.body;
     if (!message || !author) {
@@ -182,7 +223,7 @@ loadData().then(() => {
 
     chatHistory.push(newMessage);
     try {
-      await saveChatHistory(); // Save to text file
+      await saveChatHistory();
     } catch (error) {
       return res.status(500).json({ error: "Failed to save chat history" });
     }
@@ -196,9 +237,14 @@ loadData().then(() => {
     res.json({ sent: true });
   });
 
+  /**
+   * @route POST /login
+   * @desc Autenticación de usuario simple
+   * @body { username: string, email: string }
+   */
   app.post("/login", async (req, res) => {
     const { username, email } = req.body;
-    
+
     try {
       const usersFile = "./db/users.json";
       const usersData = await fs.readFile(usersFile, "utf8");
