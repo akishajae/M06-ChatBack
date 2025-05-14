@@ -66,7 +66,9 @@ const loadData = async () => {
  */
 const saveChatHistory = async () => {
   try {
-    const chatText = chatHistory.map((msg) => `[${msg.timestamp}] ${msg.author}: ${msg.text}`).join("\n");
+    const chatText = chatHistory
+      .map((msg) => `[${msg.timestamp}] ${msg.author}: ${msg.text}`)
+      .join("\n");
     await fs.writeFile(CHAT_FILE, chatText);
     console.log("Chat history saved successfully");
   } catch (error) {
@@ -114,7 +116,12 @@ loadData().then(() => {
 
         if (messageData.type === "message") {
           if (!messageData.text || !messageData.author) {
-            ws.send(JSON.stringify({ type: "error", message: "Invalid message format" }));
+            ws.send(
+              JSON.stringify({
+                type: "error",
+                message: "Invalid message format",
+              })
+            );
             return;
           }
 
@@ -128,7 +135,12 @@ loadData().then(() => {
           try {
             await saveChatHistory();
           } catch (error) {
-            ws.send(JSON.stringify({ type: "error", message: "Failed to save chat history" }));
+            ws.send(
+              JSON.stringify({
+                type: "error",
+                message: "Failed to save chat history",
+              })
+            );
             return;
           }
 
@@ -143,21 +155,45 @@ loadData().then(() => {
           try {
             await saveDocumentContent();
           } catch (error) {
-            ws.send(JSON.stringify({ type: "error", message: "Failed to save document content" }));
+            ws.send(
+              JSON.stringify({
+                type: "error",
+                message: "Failed to save document content",
+              })
+            );
             return;
           }
 
           wss.clients.forEach((client) => {
             if (client.readyState === WebSocket.OPEN) {
-              client.send(JSON.stringify({ type: "document", content: documentContent }));
+              client.send(
+                JSON.stringify({ type: "document", content: documentContent })
+              );
             }
           });
+        } else if (messageData.type == "systemNotification") { //New user conected 
+          const newMessage = {
+            author: "system",
+            text: messageData.text,
+            timestamp: messageData.timestamp,
+          };
+
+          wss.clients.forEach((client) => {
+            if (client.readyState === WebSocket.OPEN) {
+              client.send(JSON.stringify({ type: "broadcast", ...newMessage }));
+            }
+          });
+        
         } else {
-          ws.send(JSON.stringify({ type: "error", message: "Unknown message type" }));
+          ws.send(
+            JSON.stringify({ type: "error", message: "Unknown message type" })
+          );
         }
       } catch (error) {
         console.error("Error processing WebSocket message:", error);
-        ws.send(JSON.stringify({ type: "error", message: "Error processing message" }));
+        ws.send(
+          JSON.stringify({ type: "error", message: "Error processing message" })
+        );
       }
     });
 
@@ -182,7 +218,10 @@ loadData().then(() => {
    * @desc Devuelve el historial del chat en texto plano
    */
   app.get("/api/chat", (req, res) => {
-    const chatText = chatHistory.map((msg) => `[${msg.timestamp}] ${msg.author}: ${msg.text}`).join("\n");
+    const chatText = chatHistory.map((msg) => {
+      const formattedTimestamp = new Date(msg.timestamp).toLocaleString("en-GB"); 
+      return `[${formattedTimestamp}] ${msg.author}: ${msg.text}`;
+    }).join("\n");
     res.setHeader("Content-Type", "text/plain");
     res.send(chatText);
   });
@@ -250,7 +289,9 @@ loadData().then(() => {
       const usersData = await fs.readFile(usersFile, "utf8");
       const users = JSON.parse(usersData);
 
-      const user = users.find((user) => user.name === username && user.email === email);
+      const user = users.find(
+        (user) => user.name === username && user.email === email
+      );
 
       if (user) {
         return res.status(200).json({ message: "Usuario encontrado", user });
